@@ -1,0 +1,45 @@
+name: Build & Push Docker Image
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Generate date/time tag
+      id: version
+      run: |
+        TAG=$(date +'%Y%m%d%H%M%S')
+        echo "TAG=$TAG" >> $GITHUB_ENV
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build Docker image
+      run: |
+        docker build \
+          -f profile-static/Dockerfile \
+          -t ghcr.io/${{github.repository}}:latest \
+          -t ghcr.io/${{github.repository}}::${TAG} \
+          .
+
+    - name: Push both tags
+      run: |
+        docker push ghcr.io//${{github.repository}}:latest
+        docker push ghcr.io//${{github.repository}}:${TAG}
+
+    - name: Summary
+      run: |
+        echo "Pushed to GHCR: latest + ${TAG}"
